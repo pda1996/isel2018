@@ -21,8 +21,6 @@ enum fsm_state {
   DESACTIVAR,
   ACTIVAR,
   CODIGO,
-  ON,
-  OFF,
 };
 /******************************************************************************
  * FunctionName : user_rf_cal_sector_set
@@ -69,14 +67,8 @@ uint32 user_rf_cal_sector_set(void)
 
 void led_off(fsm_t *this)
 {
+    done15=0;
     GPIO_OUTPUT_SET(2, 1);
-}
-
-int pressed(fsm_t *this)
-{
-   PIN_FUNC_SELECT(GPIO_PIN_REG_0, FUNC_GPIO0);
-  PIN_FUNC_SELECT(GPIO_PIN_REG_15, FUNC_GPIO15);
-  return ((!GPIO_INPUT_GET(0)) || (GPIO_INPUT_GET(15)));
 }
 
 int time_passed(fsm_t *this)
@@ -217,24 +209,18 @@ static fsm_trans_t codigo_fsm[] = {
 
 static fsm_trans_t alarma_fsm[] = {
   { DESACTIVAR, code_ready, ACTIVAR, limpiar},
+  { DESACTIVAR, presencia, DESACTIVAR, led_on},
+  { DESACTIVAR, presencia, DESACTIVAR, led_off},
   { ACTIVAR, code_ready, DESACTIVAR, apagar},
   { ACTIVAR, presencia, ACTIVAR, led_on},
   {-1, NULL, -1, NULL },
 };
 
 
-fsm_trans_t interruptor[] = {
-    {OFF, pressed, ON, led_on},
-    {ON, pressed, ON, led_on},    
-    {ON, time_passed, OFF, apagar},
-    {-1, NULL, -1, NULL},
-};
-
 void alarm(void* ignore)
 {
   fsm_t* fsm_1 = fsm_new(codigo_fsm);
   fsm_t* fsm_2 = fsm_new(alarma_fsm);
-  fsm_t* fsm_3 = fsm_new(interruptor);
   portTickType xLastWakeTime;
 
   PIN_FUNC_SELECT(GPIO_PIN_REG_15, FUNC_GPIO15);
@@ -265,7 +251,6 @@ void alarm(void* ignore)
     xLastWakeTime = xTaskGetTickCount();
     fsm_fire(fsm_1);
     fsm_fire(fsm_2);
-    fsm_fire(fsm_3);
     vTaskDelayUntil(&xLastWakeTime, PERIOD_TICK);
   }
 }
